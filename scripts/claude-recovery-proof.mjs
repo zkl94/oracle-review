@@ -44,6 +44,17 @@ try {
   );
   await page.goto(url);
   const snapshot = () => page.evaluate(CLAUDE_SNAPSHOT_EXPRESSION);
+  await page.evaluate(() => {
+    document.querySelector('[data-testid="model-selector-dropdown"]').disabled = true;
+  });
+  assert.ok(await page.$('[data-testid="chat-input"]'));
+  assert.equal((await snapshot()).ready, false);
+  await page.evaluate(() => {
+    setTimeout(() => {
+      document.querySelector('[data-testid="model-selector-dropdown"]').disabled = false;
+    }, 150);
+  });
+  await page.waitForFunction(`(${CLAUDE_SNAPSHOT_EXPRESSION}).ready`);
   const prompt = '# Review\n\n```py\n  value = "<literal>&value"\n\n  return value\n```';
   const input = await page.createCDPSession();
   await page.focus('[data-testid="chat-input"]');

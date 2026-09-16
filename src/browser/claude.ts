@@ -65,6 +65,8 @@ export const CLAUDE_SNAPSHOT_EXPRESSION = `(() => {
   const user = rows.filter(row => row.getAttribute('data-perf-row') === 'human').at(-1);
   const assistant = rows.filter(row => row.getAttribute('data-perf-row') === 'assistant').at(-1);
   const editor = main?.querySelector('${INPUT_SELECTOR}');
+  const models = Array.from(main?.querySelectorAll('${MODEL_SELECTOR}') || []).filter(el => el.getClientRects().length);
+  const model = models.length === 1 ? models[0] : undefined;
   const reply = assistant?.querySelector('.standard-markdown');
   const afterUser = !!user && !!assistant && Number(assistant.dataset.index) > Number(user.dataset.index);
   return {
@@ -72,8 +74,9 @@ export const CLAUDE_SNAPSHOT_EXPRESSION = `(() => {
     assistantCount: rows.filter(row => row.getAttribute('data-perf-row') === 'assistant').length,
     sendExists: !!main?.querySelector('[data-testid="chat-input-send"]'),
     focused: document.hasFocus(), visibilityState: document.visibilityState,
-    modelLabel: main?.querySelector('${MODEL_SELECTOR}')?.getAttribute('aria-label') || '',
-    ready: !!editor,
+    modelLabel: model?.getAttribute('aria-label') || '',
+    ready: !!editor?.getClientRects().length && !!model && !model.disabled &&
+      model.getAttribute('aria-disabled') !== 'true' && !model.hasAttribute('data-disabled'),
     draft: editor?.innerText || '',
     userIndex: user?.getAttribute('data-index') ?? null,
     userText: user?.querySelector('[data-testid="user-message"]')?.innerText || '',
