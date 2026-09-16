@@ -267,16 +267,21 @@ async function disableClaudeTools(client: ChromeClient): Promise<void> {
   await closeMenus();
 }
 
-async function copyAnswer(client: ChromeClient, snapshot: ClaudeSnapshot): Promise<string> {
-  if (!/^\d+$/.test(snapshot.assistantIndex ?? ""))
-    throw new Error("Claude answer row identity is unavailable.");
+async function copyClaudeTurn(
+  client: ChromeClient,
+  snapshot: ClaudeSnapshot,
+  role: "user" | "assistant",
+): Promise<string> {
+  const index = role === "user" ? snapshot.userIndex : snapshot.assistantIndex;
+  const copyId = role === "user" ? "user-message-copy" : "action-bar-copy";
+  if (!/^\d+$/.test(index ?? "")) throw new Error("Claude message row identity is unavailable.");
   const result = await evaluate<string>(
     client,
     `(async () => {
     if (location.href !== ${JSON.stringify(snapshot.url)}) throw new Error('Claude conversation changed before copy');
-    const row = document.querySelector('${ROW_SELECTOR}[data-index="${snapshot.assistantIndex}"]');
-    const button = row?.querySelector('[data-testid="action-bar-copy"]');
-    if (!button || !navigator.clipboard) throw new Error('Claude answer copy control unavailable');
+    const row = document.querySelector('${ROW_SELECTOR}[data-index="${index}"]');
+    const button = row?.querySelector('[data-testid="${copyId}"]');
+    if (!button || !navigator.clipboard) throw new Error('Claude message copy control unavailable');
     const clipboard = navigator.clipboard;
     const oldWrite = clipboard.write, oldWriteText = clipboard.writeText;
     let text;
@@ -288,12 +293,26 @@ async function copyAnswer(client: ChromeClient, snapshot: ClaudeSnapshot): Promi
       button.click();
       const deadline = Date.now() + 5000;
       while (text === undefined && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 50));
-      if (!text?.trim()) throw new Error('Claude Markdown copy failed; refusing lossy text fallback');
+      if (!text?.trim()) throw new Error('Claude source copy failed; refusing rendered-text fallback');
       return text;
     } finally { clipboard.write = oldWrite; clipboard.writeText = oldWriteText; }
   })()`,
   );
   return result;
+}
+
+// The transcript renders Markdown; fingerprint the original user text from Copy.
+async function readClaudeSourceSnapshot(client: ChromeClient): Promise<ClaudeSnapshot> {
+  const before = await evaluate<ClaudeSnapshot>(client, CLAUDE_SNAPSHOT_EXPRESSION);
+  const source = await copyClaudeTurn(client, before, "user");
+  const after = await evaluate<ClaudeSnapshot>(client, CLAUDE_SNAPSHOT_EXPRESSION);
+  if (
+    after.url !== before.url ||
+    after.userIndex !== before.userIndex ||
+    after.userText !== before.userText
+  )
+    throw new Error("Claude user turn changed while copying its source.");
+  return { ...after, userText: source };
 }
 
 export function buildClaudePromptInsertExpression(prompt: string): string {
@@ -479,11 +498,21 @@ export async function runClaudeBrowser(options: BrowserRunOptions): Promise<Brow
         async () => {
           const current = await evaluate<ClaudeSnapshot>(client, CLAUDE_SNAPSHOT_EXPRESSION);
           assertClaudeSelection(current);
-          return current.userIndex !== baseline &&
-            current.userText.trim() === options.prompt.trim() &&
-            claudePromptHash(current)
-            ? current
-            : undefined;
+          if (
+            current.userIndex == null ||
+            current.userIndex === baseline ||
+            !claudeConversationId(current.url)
+          )
+            return undefined;
+          const committed = await readClaudeSourceSnapshot(client);
+          if (
+            committed.userText.replace(/\r\n?/g, "\n").trim() !==
+            options.prompt.replace(/\r\n?/g, "\n").trim()
+          )
+            throw new Error(
+              "Claude committed prompt differs from the reviewed source; preserve this turn without resubmitting.",
+            );
+          return committed;
         },
         inputTimeout,
         "committed user turn",
@@ -496,11 +525,8 @@ export async function runClaudeBrowser(options: BrowserRunOptions): Promise<Brow
       };
       await options.runtimeHintCb?.(hints, modelSelection);
       snapshot = await waitForAnswer(client, hints, options.config?.timeoutMs ?? 1_200_000);
-      const answerMarkdown = await copyAnswer(client, snapshot);
-      assertClaudeAnswer(
-        await evaluate<ClaudeSnapshot>(client, CLAUDE_SNAPSHOT_EXPRESSION),
-        hints.submittedPromptHash!,
-      );
+      const answerMarkdown = await copyClaudeTurn(client, snapshot, "assistant");
+      assertClaudeAnswer(await readClaudeSourceSnapshot(client), hints.submittedPromptHash!);
       complete = true;
       return {
         ...hints,
@@ -551,8 +577,9 @@ async function waitForAnswer(
       if (snapshot.url !== runtime.tabUrl)
         throw new Error("Claude conversation changed; refusing to capture another chat.");
       if (!snapshot.complete) return undefined;
-      assertClaudeAnswer(snapshot, hash);
-      return snapshot;
+      const source = await readClaudeSourceSnapshot(client);
+      assertClaudeAnswer(source, hash);
+      return source;
     },
     timeoutMs,
     "complete Claude answer",
@@ -608,7 +635,7 @@ export async function resumeClaudeBrowser(
           const snapshot = await evaluate<ClaudeSnapshot>(client, CLAUDE_SNAPSHOT_EXPRESSION);
           return (
             snapshot.ready &&
-            claudePromptHash(snapshot) === runtime.submittedPromptHash &&
+            snapshot.userIndex != null &&
             /^Model: Fable 5\.1 Max(?:\s|$)/.test(snapshot.modelLabel)
           );
         },
@@ -616,11 +643,8 @@ export async function resumeClaudeBrowser(
         "saved Claude turn and Fable 5.1 Max selection",
       );
       const snapshot = await waitForAnswer(client, runtime, config?.timeoutMs ?? 120_000);
-      const answerMarkdown = await copyAnswer(client, snapshot);
-      assertClaudeAnswer(
-        await evaluate<ClaudeSnapshot>(client, CLAUDE_SNAPSHOT_EXPRESSION),
-        runtime.submittedPromptHash!,
-      );
+      const answerMarkdown = await copyClaudeTurn(client, snapshot, "assistant");
+      assertClaudeAnswer(await readClaudeSourceSnapshot(client), runtime.submittedPromptHash!);
       return {
         claudeSnapshot: snapshot,
         ...runtime,

@@ -26,8 +26,9 @@ The synthetic page never contacts the provider.
 
 For signed-in testing, use the command in [Claude browser mode](claude.md):
 
-1. Submit a harmless prompt with a heading, list and fenced code block; verify
-   exact Fable 5.1 and Max UI evidence in the session and intact Markdown.
+1. Submit a harmless prompt with an inline source file containing blank lines,
+   indentation and code fences. Verify copied user-message source matches the
+   preview, exact Fable 5.1 and Max UI evidence, and intact answer Markdown.
 2. Use `--followup <id>` and verify the same URL, model and effort.
 3. Harvest the saved session after its tab closes; require a matching committed
    prompt fingerprint and the complete answer, with no new submission.

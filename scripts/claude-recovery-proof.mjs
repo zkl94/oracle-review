@@ -12,6 +12,7 @@ import {
 } from "../dist/src/browser/claude.js";
 
 const url = "https://claude.ai/chat/12345678-1234-1234-1234-123456789abc";
+const userSource = "Review this patch.\n\n```js\n  const value = 1;\n```";
 const markdown = "# Answer\n\n- alpha\n- beta\n\n```js\nconst ok = true;\n```";
 const chrome = await launch({
   chromePath: process.env.CHROME_PATH,
@@ -31,7 +32,8 @@ try {
         body: `<!doctype html><title>Claude recovery proof</title><main>
       <button data-testid="model-selector-dropdown" aria-label="Model: Fable 5.1 Max"></button>
       <div data-testid="transcript-row" data-index="0" data-perf-row="human">
-        <div data-testid="user-message">Review this patch.</div></div>
+        <div data-testid="user-message"><p>Review this patch.</p><code>  const value = 1;</code></div>
+        <button data-testid="user-message-copy" onclick='navigator.clipboard.writeText(${JSON.stringify(userSource)})'>Copy</button></div>
       <div data-testid="transcript-row" data-index="1" data-perf-row="assistant" data-perf-row-streaming="false">
         <div data-is-streaming="false"><div class="standard-markdown"><h1>Answer</h1><ul><li>alpha</li><li>beta</li></ul><pre>const ok = true;</pre></div></div>
         <button data-testid="action-bar-copy" onclick='navigator.clipboard.writeText(${JSON.stringify(markdown)})'>Copy</button></div>
@@ -55,13 +57,15 @@ try {
   await page.evaluate(buildClaudePromptInsertExpression(prompt));
   assert.equal((await snapshot()).draft, prompt);
   await assert.rejects(page.evaluate(buildClaudePromptInsertExpression("overwrite")), /not empty/);
-  const initial = await snapshot();
+  const rendered = await snapshot();
+  assert.notEqual(rendered.userText, userSource);
+  const initial = { ...rendered, userText: userSource };
   const hash = claudePromptHash(initial);
   assert.ok(hash);
   assertClaudeAnswer(initial, hash);
   // Reloaded pages lack data-perf-reply-text; the public Markdown container remains.
   await page.reload();
-  assertClaudeAnswer(await snapshot(), hash);
+  assert.throws(() => assertClaudeAnswer(rendered, hash), /saved prompt/);
   const { targetInfos } = await (
     await browser.target().createCDPSession()
   ).send("Target.getTargets");
@@ -101,6 +105,7 @@ try {
   });
   const recovered = await resumeClaudeBrowser(runtime, config, () => {});
   assert.equal(recovered.answerMarkdown, markdown);
+  assert.equal(recovered.claudeSnapshot.userText, userSource);
   assert.equal(await page.evaluate("window.sends"), 0);
   assert.equal(peer.isClosed(), false);
   assert.throws(
@@ -111,6 +116,15 @@ try {
     () => assertClaudeAnswer({ ...initial, modelLabel: "Model: Fable 5.1 High" }, hash),
     /selection/,
   );
+  await page.evaluate(() => {
+    document.querySelector('[data-testid="user-message-copy"]').onclick = () =>
+      navigator.clipboard.writeText("Different source");
+  });
+  await assert.rejects(
+    resumeClaudeBrowser(runtime, config, () => {}),
+    /saved prompt/,
+  );
+  assert.equal(await page.evaluate("window.sends"), 0);
   console.log(
     "PASS: multiline input, existing-draft refusal, reload, delayed identity, timeout recovery, Markdown, zero sends, peer preservation, stale-turn and effort refusal",
   );
