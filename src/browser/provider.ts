@@ -1,6 +1,11 @@
-export function resolveBrowserProvider(model: unknown): "chatgpt" | "gemini" | undefined {
+export const CLAUDE_BROWSER_MODEL = "claude-fable-5-1";
+
+export function resolveBrowserProvider(
+  model: unknown,
+): "chatgpt" | "gemini" | "claude" | undefined {
   if (typeof model !== "string") return undefined;
   const normalized = model.trim().toLowerCase();
+  if (normalized === CLAUDE_BROWSER_MODEL) return "claude";
   if (normalized.startsWith("gemini")) return "gemini";
   if (normalized.startsWith("gpt-")) return "chatgpt";
   return undefined;
@@ -11,10 +16,12 @@ export function resolveRemoteBrowserModel(
   desiredModel: unknown,
 ): string | undefined {
   if (model !== undefined) {
-    if (typeof model === "string" && resolveBrowserProvider(model)) return model;
+    const provider = resolveBrowserProvider(model);
+    if (typeof model === "string" && provider && provider !== "claude") return model;
     throw new Error(`Unsupported browser model: ${String(model)}. Use a GPT or Gemini model.`);
   }
-  if (typeof desiredModel === "string" && resolveBrowserProvider(desiredModel)) return desiredModel;
+  const provider = resolveBrowserProvider(desiredModel);
+  if (typeof desiredModel === "string" && provider && provider !== "claude") return desiredModel;
   // Older ChatGPT clients send only a picker label, or omit the selection entirely.
   if (
     desiredModel == null ||

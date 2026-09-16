@@ -114,6 +114,8 @@ export async function ensureThinkingTime(
   logger: BrowserLogger,
   desiredModel?: string | null,
 ): Promise<BrowserThinkingSelectionEvidence> {
+  if (level === "max")
+    throw new Error("Max effort is supported only by the Claude browser driver.");
   const result = await evaluateThinkingTimeSelection(Runtime, level, desiredModel);
   const capitalizedLevel = level.charAt(0).toUpperCase() + level.slice(1);
   const targetModelKind = inferThinkingTargetModelKind(desiredModel);

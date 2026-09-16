@@ -1,6 +1,9 @@
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import chalk from "chalk";
+import { CLAUDE_BROWSER_MODEL } from "../browser/provider.js";
+import { resumeClaudeBrowser } from "../browser/claude.js";
+import { ensureSessionArtifacts } from "../browser/sessionRunner.js";
 import { sessionStore } from "../sessionStore.js";
 import type { SessionMetadata } from "../sessionStore.js";
 import { resolveBrowserConfig } from "../browser/config.js";
@@ -356,6 +359,9 @@ export async function harvestSessionBrowserOutput(
   if (!meta) {
     throw new Error(`No session found with ID ${sessionId}.`);
   }
+  if ((meta.options?.model ?? meta.model) === CLAUDE_BROWSER_MODEL) {
+    return harvestClaudeOutput(meta, options);
+  }
   const recordedEndpoint = await sessionBrowserEndpoint(meta);
   const initialEndpoint = recordedEndpoint ?? {
     host: DEFAULT_REMOTE_CHROME_HOST,
@@ -428,6 +434,9 @@ export async function liveTailSessionBrowserOutput(
   const meta = await sessionStore.readSession(sessionId);
   if (!meta) {
     throw new Error(`No session found with ID ${sessionId}.`);
+  }
+  if ((meta.options?.model ?? meta.model) === CLAUDE_BROWSER_MODEL) {
+    return harvestClaudeOutput(meta, options);
   }
   const recordedEndpoint = await sessionBrowserEndpoint(meta);
   let endpoint = recordedEndpoint ?? {
@@ -543,4 +552,93 @@ export async function liveTailSessionBrowserOutput(
   } finally {
     finishRecoveredChrome(recoveredChrome, options.closeAfterRecover);
   }
+}
+
+async function harvestClaudeOutput(
+  meta: SessionMetadata,
+  options: BrowserHarvestOptions,
+): Promise<ChatGptTabSummary> {
+  if (options.browserTabRef)
+    throw new Error(
+      "Claude recovery uses the saved conversation identity; target overrides are not supported.",
+    );
+  const config = meta.browser?.config ?? meta.options?.browserConfig;
+  const result = await resumeClaudeBrowser(meta.browser?.runtime ?? {}, config, console.log);
+  const snapshot = result.claudeSnapshot;
+  const harvested: ChatGptTabSummary = {
+    host: result.chromeHost,
+    port: result.chromePort,
+    targetId: result.chromeTargetId ?? "",
+    title: snapshot.title,
+    url: result.tabUrl!,
+    currentModelLabel: snapshot.modelLabel,
+    stopExists: false,
+    sendExists: snapshot.sendExists,
+    promptReady: snapshot.ready,
+    loginButtonExists: false,
+    authenticated: true,
+    assistantCount: snapshot.assistantCount,
+    lastAssistantText: result.answerText,
+    assistantFollowsLatestUser: true,
+    lastAssistantTurnIndex: Number(snapshot.assistantIndex),
+    lastUserTurnIndex: Number(snapshot.userIndex),
+    lastAssistantSnippet: result.answerText.slice(0, 160),
+    lastUserText: snapshot.userText,
+    lastUserSnippet: snapshot.userText.slice(0, 160),
+    focused: snapshot.focused,
+    visibilityState: snapshot.visibilityState,
+    conversationId: result.conversationId,
+    fingerprint: result.submittedPromptHash!,
+    state: "completed",
+    lastAssistantMarkdown: result.answerMarkdown,
+  };
+  const integrity = await persistBrowserHarvest(meta.id, harvested);
+  const paths = await sessionStore.getPaths(meta.id);
+  const artifacts = await ensureSessionArtifacts({
+    sessionId: meta.id,
+    prompt: meta.options?.prompt ?? "",
+    answerMarkdown: result.answerMarkdown,
+    conversationUrl: result.tabUrl,
+    browserConfig: config ?? {},
+    existingArtifacts: meta.artifacts,
+    logger: console.log,
+  });
+  await fs.appendFile(
+    paths.log,
+    `\n[reattach] recovered Claude answer without resubmission\nAnswer:\n${result.answerMarkdown}\n`,
+    "utf8",
+  );
+  await sessionStore.updateModelRun(meta.id, CLAUDE_BROWSER_MODEL, {
+    status: "completed",
+    completedAt: new Date().toISOString(),
+  });
+  // Refresh metadata after the integrity record was persisted.
+  const latest = await sessionStore.readSession(meta.id);
+  await sessionStore.updateSession(meta.id, {
+    status: "completed",
+    completedAt: new Date().toISOString(),
+    error: undefined,
+    errorMessage: undefined,
+    response: { status: "completed" },
+    artifacts,
+    browser: {
+      ...latest?.browser,
+      runtime: {
+        ...meta.browser?.runtime,
+        chromeTargetId: result.chromeTargetId,
+        chromePort: result.chromePort,
+        chromeHost: result.chromeHost,
+        chromeBrowserWSEndpoint: result.chromeBrowserWSEndpoint,
+      },
+    },
+  });
+  printHarvestSummary(meta.id, harvested, integrity);
+  if (options.writeOutputPath)
+    await maybeWriteHarvestOutput(
+      options.writeOutputPath,
+      meta.cwd ?? process.cwd(),
+      result.answerMarkdown,
+    );
+  if (!options.quietOutput) process.stdout.write(`${result.answerMarkdown}\n`);
+  return harvested;
 }

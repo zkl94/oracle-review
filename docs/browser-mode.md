@@ -1,10 +1,11 @@
 # Browser Mode
 
-Oracle’s `--engine browser` supports three different execution paths:
+Oracle’s `--engine browser` supports these execution paths:
 
 - **ChatGPT launcher mode** (GPT-\* models): Oracle launches Chrome itself and drives the ChatGPT web UI over CDP.
 - **ChatGPT attach-running mode** (GPT-\* models): Oracle attaches to your already-running local Chrome session through Chrome’s local remote-debugging toggle, opens a dedicated tab, and leaves the browser process/profile alone.
 - **Gemini web mode** (Gemini models): talks directly to `gemini.google.com` using your signed-in Chrome cookies (no ChatGPT automation).
+- **Claude web mode** (`claude-fable-5-1`): drives a signed-in Chrome tab with verified Max effort. See [Claude setup and recovery](claude.md).
 
 If you’re running Gemini, also see `docs/gemini.md`.
 

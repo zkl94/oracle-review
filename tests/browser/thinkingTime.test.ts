@@ -86,7 +86,7 @@ describe("browser thinking-time selection expression", () => {
   // Scope each inventory to its own list: "erweitert" belongs to both the
   // extended tier and the Advanced menu, so whole-expression checks miss removals.
   it("keeps every LEVEL_TOKENS locale word for every tier", () => {
-    const levelWords: Record<Exclude<ThinkingTimeLevel, "pro">, string[]> = {
+    const levelWords: Record<Exclude<ThinkingTimeLevel, "pro" | "max">, string[]> = {
       light: ["light", "instant", "sofort", "leicht", "最速", "轻", "极速", "즉시"],
       standard: ["standard", "medium", "mittel", "中程度", "标准", "中", "중간"],
       extended: [

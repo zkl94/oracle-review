@@ -10,6 +10,24 @@ model can answer with real repository context through the API or browser. A
 prompt is required; attach files only when they add necessary context. Treat
 responses as advisory and verify them against the codebase and tests.
 
+## 6 Pro and Claude Fable 5.1 Max
+
+Upstream 0.21.1 supports `--model gpt-6-pro --browser-thinking-time pro`.
+This fork also supports Claude's signed-in website:
+
+```bash
+oracle --engine browser --browser-attach-running \
+  --model claude-fable-5-1 --browser-thinking-time max \
+  --browser-model-strategy select --browser-attachments never \
+  -p "<review brief>" --file changes.patch --wait
+```
+
+Preview with `--dry-run summary --files-report` and `--dry-run full` before
+submission. Both model and Max effort must be verified. Claude supports inline
+text evidence, `session <id> --harvest` and `--followup <id>`; recover a timed-out
+turn instead of resubmitting. Use separate commands for independent website
+reviews; `--models` is an API panel. See [Claude setup and limits](../../docs/claude.md).
+
 ## Main use case (browser, GPT-5.6)
 
 Use browser mode with GPT-5.6 when the ChatGPT account exposes it. GPT-5.6 Sol

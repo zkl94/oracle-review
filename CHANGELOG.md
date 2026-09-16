@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Claude: add `--engine browser --model claude-fable-5-1` with verified Max effort, inline text evidence, Markdown capture, saved-turn recovery and follow-ups through the signed-in website. Keep upstream 6 Pro support unchanged.
+
 ## 0.21.1 - 2026-09-14
 
 **Highlights:** Live Gemini answers work out of the box.

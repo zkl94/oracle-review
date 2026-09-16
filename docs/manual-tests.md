@@ -16,6 +16,26 @@ and run the live API suite before shipping major transport changes.
 
 ## Test Cases
 
+### Claude Fable 5.1 Max
+
+Run `pnpm build && node scripts/claude-recovery-proof.mjs` for isolated Chrome
+checks of reload, delayed model hydration, incomplete-answer refusal, timeout
+recovery, Markdown preservation, unchanged peer tabs and zero recovery sends.
+The synthetic page never contacts the provider.
+
+For signed-in testing, use the command in [Claude browser mode](claude.md):
+
+1. Submit a harmless prompt with a heading, list and fenced code block; verify
+   exact Fable 5.1 and Max UI evidence in the session and intact Markdown.
+2. Use `--followup <id>` and verify the same URL, model and effort.
+3. Harvest the saved session after its tab closes; require a matching committed
+   prompt fingerprint and the complete answer, with no new submission.
+4. Set `--browser-timeout 1ms --browser-auto-reattach-interval 0`, then harvest
+   the same session after generation completes. Preserve the original user
+   turn and refuse capture if the model, effort or latest turn differs.
+5. Preview `gpt-6-pro` with Pro effort and run its existing selection tests to
+   verify the upstream target remains unchanged.
+
 ### Recovered tab retirement
 
 Run `pnpm build && node scripts/recovery-retirement-proof.mjs` for built-CLI harvests against isolated Chrome. The synthetic matrix checks full-answer persistence before owned-tab retirement and preservation of a peer, borrowed/kept targets, active controllers, and the current generation stop control.

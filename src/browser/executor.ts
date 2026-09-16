@@ -24,6 +24,13 @@ export async function resolveBrowserExecutor(
   if (!provider) {
     throw new Error(`Unsupported browser model: ${options.model}. Use a GPT or Gemini model.`);
   }
+  if (provider === "claude") {
+    if (remote)
+      throw new Error(
+        "Claude browser runs require local Chrome; remote services are not supported.",
+      );
+    return (await import("./claude.js")).runClaudeBrowser;
+  }
   if (remote) {
     const { createRemoteBrowserExecutor } = await import("../remote/client.js");
     return createRemoteBrowserExecutor({ ...remote, runOptions: options });

@@ -84,7 +84,7 @@ ptyDescribe("oracle CLI browser guard (PTY)", () => {
       "TTY guard prompt for grok browser path",
     ]);
     expect(code).not.toBe(0);
-    expect(stripAnsi(output)).toMatch(/Browser engine only supports GPT and Gemini models/i);
+    expect(stripAnsi(output)).toMatch(/Browser engine supports GPT, Gemini, and claude-fable-5-1/i);
   }, 30_000);
 
   it("fails fast when multi-model list includes non-GPT under browser engine", async () => {
@@ -97,6 +97,6 @@ ptyDescribe("oracle CLI browser guard (PTY)", () => {
       "TTY guard prompt for mixed models",
     ]);
     expect(code).not.toBe(0);
-    expect(stripAnsi(output)).toMatch(/Browser engine only supports GPT and Gemini models/i);
+    expect(stripAnsi(output)).toMatch(/Browser engine supports GPT, Gemini, and claude-fable-5-1/i);
   }, 30_000);
 });

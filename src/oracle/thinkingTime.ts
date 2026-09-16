@@ -10,6 +10,7 @@ export const THINKING_TIME_LEVELS = [
   // Kept distinct from "heavy": requesting Pro must be deliberate.
   "pro",
   "heavy",
+  "max",
 ] as const;
 export const THINKING_TIME_ALIASES = [
   "instant",
@@ -54,6 +55,8 @@ export function normalizeThinkingTimeLevel(
       return "pro";
     case "heavy":
       return "heavy";
+    case "max":
+      return "max";
     default:
       return null;
   }

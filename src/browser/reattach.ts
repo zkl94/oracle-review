@@ -78,6 +78,10 @@ export async function resumeBrowserSession(
   logger: BrowserLogger,
   deps: ReattachDeps = {},
 ): Promise<ReattachResult> {
+  if (config?.desiredModel === "Fable 5.1") {
+    const { resumeClaudeBrowser } = await import("./claude.js");
+    return resumeClaudeBrowser(runtime, config, logger, deps.signal);
+  }
   const cancellation = new BrowserCancellation(deps.signal, logger);
   try {
     return await cancellation.run(() =>

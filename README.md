@@ -16,6 +16,9 @@ Oracle is a CLI and MCP server that bundles a prompt with the files you select, 
 
 Full documentation is at [askoracle.sh](https://askoracle.sh).
 
+This fork retains upstream 6 Pro support and adds [Claude Fable 5.1 Max through
+the signed-in website](docs/claude.md), including CLI sessions and recovery.
+
 ## Install
 
 With Homebrew on macOS or Linux:

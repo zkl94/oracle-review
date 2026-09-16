@@ -165,7 +165,7 @@ export interface BrowserModelSelectionEvidence {
   strategy?: BrowserModelStrategy;
   status: BrowserModelSelectionEvidenceStatus;
   verified: boolean;
-  source: "chatgpt-model-picker" | "config";
+  source: "chatgpt-model-picker" | "claude-model-picker" | "config";
   capturedAt: string;
 }
 
@@ -184,7 +184,7 @@ export interface BrowserThinkingSelectionEvidence {
   strictFailClosed: boolean;
   targetModelKind?: string | null;
   observedModelKind?: string | null;
-  source: "chatgpt-thinking-picker";
+  source: "chatgpt-thinking-picker" | "claude-effort-picker";
   capturedAt: string;
 }
 

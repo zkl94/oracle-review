@@ -33,6 +33,7 @@ const CURRENT_CHATGPT_PRO_ALIASES = new Set([
 // Ordered array: most specific models first to ensure correct selection.
 // The browser label is passed to the model picker which fuzzy-matches against ChatGPT's UI.
 const BROWSER_MODEL_LABELS: [ModelName, string][] = [
+  ["claude-fable-5-1", "Fable 5.1"],
   // Most specific first (e.g., "gpt-5.2-thinking" before "gpt-5.2")
   // GPT-6 (Astra) has no entry of its own in the ChatGPT picker: it is the "Latest" radio of the
   // advanced view, and "GPT-6 Pro" is that radio with the power slider at Pro (composer pill "6 Pro").
@@ -183,6 +184,7 @@ export function resolveDefaultBrowserThinkingTime({
 }): ThinkingTimeLevel | undefined {
   const strategy = normalizeBrowserModelStrategy(modelStrategy) ?? DEFAULT_MODEL_STRATEGY;
   if (strategy !== "select") return undefined;
+  if (model === "claude-fable-5-1") return "max";
   const normalizedModel = normalizeChatGptModelForBrowser(model as ModelName);
   return isCurrentChatGptProAlias(requestedModel ?? model) ||
     isGpt6ProAlias(requestedModel ?? model) ||
@@ -230,6 +232,9 @@ export async function buildBrowserConfig(
       requestedModel: options.browserRequestedModel,
       modelStrategy,
     });
+  if (thinkingTime === "max" && options.model !== "claude-fable-5-1") {
+    throw new Error("Max effort is supported only for claude-fable-5-1 browser runs.");
+  }
   assertBrowserModelAvailable(options.model, modelStrategy);
   const cookieNames = parseCookieNames(
     options.browserCookieNames ?? process.env.ORACLE_BROWSER_COOKIE_NAMES,
@@ -347,7 +352,11 @@ export async function buildBrowserConfig(
     headless: options.browserHeadless === true ? true : undefined,
     keepBrowser: options.browserKeepBrowser ? true : undefined,
     manualLogin: options.browserManualLogin === undefined ? undefined : options.browserManualLogin,
-    manualLoginProfileDir: options.browserManualLoginProfileDir ?? undefined,
+    manualLoginProfileDir:
+      options.browserManualLoginProfileDir ??
+      (options.model === "claude-fable-5-1"
+        ? path.join(getOracleHomeDir(), "claude-browser-profile")
+        : undefined),
     manualLoginCookieSync: inline?.cookies?.length ? true : options.browserManualLoginCookieSync,
     copyProfileSource: options.copyProfile ?? undefined,
     hideWindow: options.browserHideWindow ? true : undefined,

@@ -43,6 +43,7 @@ import {
   dedupePathInputs,
 } from "../src/cli/options.js";
 import { copyToClipboard } from "../src/cli/clipboard.js";
+import { resolveBrowserProvider } from "../src/browser/provider.js";
 import { isGpt6ProAlias } from "../src/cli/browserConfig.js";
 import { buildMarkdownBundle } from "../src/cli/markdownBundle.js";
 import {
@@ -826,7 +827,7 @@ program
   .addOption(
     new Option(
       "--browser-thinking-time <level>",
-      "Thinking time intensity for Thinking/Pro models: light, standard, extended, extra-high (Extra High), pro (Pro tier of the active model), heavy, or ChatGPT UI aliases.",
+      "Thinking time intensity: light, standard, extended, extra-high, pro, heavy, UI aliases, or max (Claude Fable 5.1).",
     )
       .argParser(parseThinkingTimeOption)
       .hideHelp(),
@@ -2034,26 +2035,21 @@ async function runRootCommand(options: CliOptions): Promise<void> {
       : resolveApiModel(cliModelArg || DEFAULT_MODEL);
   const primaryModelCandidate = normalizedMultiModels[0] ?? resolvedModelCandidate;
   const isGemini = primaryModelCandidate.startsWith("gemini");
-  const isCodex = primaryModelCandidate.startsWith("gpt-5.1-codex");
   const isClaude = primaryModelCandidate.startsWith("claude");
+  const isCodex = primaryModelCandidate.startsWith("gpt-5.1-codex");
   const userForcedBrowser = options.browser || options.engine === "browser";
   const browserExplicitlyRequested = browserEngineRequested;
-  const isBrowserCompatible = (model: string) =>
-    model.startsWith("gpt-") || model.startsWith("gemini");
+  const isBrowserCompatible = (model: string) => Boolean(resolveBrowserProvider(model));
   const hasNonBrowserCompatibleTarget =
     normalizedMultiModels.length > 0
       ? normalizedMultiModels.some((model) => !isBrowserCompatible(model))
       : !isBrowserCompatible(resolvedModelCandidate);
   if (browserExplicitlyRequested && hasNonBrowserCompatibleTarget) {
     throw new Error(
-      "Browser engine only supports GPT and Gemini models. Re-run with --engine api for Grok, Claude, or other models.",
+      "Browser engine supports GPT, Gemini, and claude-fable-5-1. Other models require --engine api.",
     );
   }
   if (engine === "browser" && hasNonBrowserCompatibleTarget) {
-    engine = "api";
-  }
-  if (isClaude && engine === "browser") {
-    console.log(chalk.dim("Browser engine is not supported for Claude models; switching to API."));
     engine = "api";
   }
   if (isCodex && engine === "browser") {

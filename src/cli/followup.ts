@@ -3,6 +3,8 @@ import { CHATGPT_URL } from "../browser/constants.js";
 import { buildConversationUrl } from "../browser/reattachHelpers.js";
 import { resolveRecoveryUrl } from "../browser/recoverConversation.js";
 import { isRecoverableChatGptConversationUrl } from "../browser/reattachability.js";
+import { CLAUDE_BROWSER_MODEL } from "../browser/provider.js";
+import { claudeConversationId } from "../browser/claude.js";
 import { DEFAULT_MODEL } from "../oracle/config.js";
 import type { ModelName } from "../oracle/types.js";
 
@@ -33,6 +35,10 @@ export function resolveBrowserResumeConversationUrl(
   metadata: SessionMetadata,
   fallbackBaseUrl = CHATGPT_URL,
 ): string | null {
+  if ((metadata.options?.model ?? metadata.model) === CLAUDE_BROWSER_MODEL) {
+    const url = metadata.browser?.runtime?.tabUrl;
+    return claudeConversationId(url) ? url! : null;
+  }
   const gatedUrl = resolveRecoveryUrl(metadata);
   if (gatedUrl) {
     return gatedUrl;
@@ -73,7 +79,7 @@ export async function resolveBrowserFollowupReference(
   const resumeConversationUrl = resolveBrowserResumeConversationUrl(metadata);
   if (!resumeConversationUrl) {
     throw new Error(
-      `Session ${trimmed} is a browser session but does not contain a ChatGPT conversation URL. Run "oracle status --hours 72 --limit 20" to list recent sessions.`,
+      `Session ${trimmed} is a browser session but does not contain a ${(metadata.options?.model ?? metadata.model) === CLAUDE_BROWSER_MODEL ? "Claude" : "ChatGPT"} conversation URL. Run "oracle status --hours 72 --limit 20" to list recent sessions.`,
     );
   }
   const parentBrowserConfig = metadata.options?.browserConfig ?? metadata.browser?.config;
@@ -82,7 +88,8 @@ export async function resolveBrowserFollowupReference(
   }
   const storedModel = metadata.options?.model ?? metadata.model;
   const model =
-    typeof storedModel === "string" && storedModel.startsWith("gpt-")
+    typeof storedModel === "string" &&
+    (storedModel.startsWith("gpt-") || storedModel === CLAUDE_BROWSER_MODEL)
       ? (storedModel as ModelName)
       : DEFAULT_MODEL;
   return {

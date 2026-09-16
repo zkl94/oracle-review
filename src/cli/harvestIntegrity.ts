@@ -4,8 +4,15 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { sessionStore } from "../sessionStore.js";
 import type { BrowserHarvestIntegrity } from "../sessionManager.js";
-import { extractConversationIdFromUrl, type ChatGptTabSummary } from "../browser/liveTabs.js";
+import { claudeConversationId } from "../browser/claude.js";
+import {
+  extractConversationIdFromUrl as extractGptConversationId,
+  type ChatGptTabSummary,
+} from "../browser/liveTabs.js";
 import { BrowserAutomationError } from "../oracle/errors.js";
+
+const extractConversationIdFromUrl = (url: string) =>
+  claudeConversationId(url) ?? extractGptConversationId(url);
 
 const INTEGRITY_WARNING = "browser-harvest-integrity";
 const INTEGRITY_MESSAGE =

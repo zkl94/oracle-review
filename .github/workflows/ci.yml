@@ -113,3 +113,6 @@ jobs:
       - name: Run effort slider readiness proof
         if: matrix.suite == 'core'
         run: node scripts/effort-readiness-proof.mjs
+      - name: Run Claude recovery proof
+        if: matrix.suite == 'core'
+        run: node scripts/claude-recovery-proof.mjs

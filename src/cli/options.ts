@@ -165,7 +165,7 @@ export function parseThinkingTimeOption(value: string): ThinkingTimeLevel {
     return normalized;
   }
   throw new InvalidArgumentError(
-    'Thinking time must be one of "light", "standard", "extended", "extra-high", "pro", "heavy", or a ChatGPT UI alias like "instant", "medium", "high", or "xhigh".',
+    'Thinking time must be one of "light", "standard", "extended", "extra-high", "pro", "heavy", "max" (Claude), or a ChatGPT UI alias like "instant", "medium", "high", or "xhigh".',
   );
 }
 
@@ -334,6 +334,8 @@ export function isGpt56BrowserLabel(modelValue: string): boolean {
 
 export function inferModelFromLabel(modelValue: string): ModelName {
   const normalized = normalizeModelOption(modelValue).toLowerCase();
+  // Preserve Claude ids so unsupported targets cannot fall through to a GPT label.
+  if (normalized.startsWith("claude-")) return normalized as ModelName;
   if (!normalized) {
     return DEFAULT_MODEL;
   }
