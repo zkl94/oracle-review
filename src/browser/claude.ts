@@ -282,7 +282,13 @@ async function copyClaudeTurn(
     () =>
       evaluate<boolean>(
         client,
-        `!!document.querySelector('${ROW_SELECTOR}[data-index="${index}"] [data-testid="${copyId}"]')`,
+        `(() => {
+          if (location.href !== ${JSON.stringify(snapshot.url)}) throw new Error('Claude conversation changed before copy');
+          const row = document.querySelector('${ROW_SELECTOR}[data-index="${index}"]');
+          if (!row?.querySelector('[data-testid="${copyId}"]'))
+            row?.querySelector('button[aria-label^="Show message actions for "]')?.click();
+          return !!row?.querySelector('[data-testid="${copyId}"]');
+        })()`,
       ),
     60_000,
     "message copy control",

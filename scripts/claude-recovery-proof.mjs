@@ -131,6 +131,18 @@ try {
     /selection/,
   );
   await page.evaluate(() => {
+    const copy = document.querySelector('[data-testid="user-message-copy"]');
+    copy.removeAttribute("data-testid");
+    const reveal = document.createElement("button");
+    reveal.setAttribute("aria-label", "Show message actions for You said: Review this patch.");
+    reveal.onclick = () => {
+      copy.setAttribute("data-testid", "user-message-copy");
+      reveal.remove();
+    };
+    copy.after(reveal);
+  });
+  assert.equal((await resumeClaudeBrowser(runtime, config, () => {})).answerMarkdown, markdown);
+  await page.evaluate(() => {
     document.querySelector('[data-testid="user-message-copy"]').onclick = () =>
       navigator.clipboard.writeText("Different source");
   });
