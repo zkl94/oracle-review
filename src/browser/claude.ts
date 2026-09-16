@@ -278,6 +278,15 @@ async function copyClaudeTurn(
   const index = role === "user" ? snapshot.userIndex : snapshot.assistantIndex;
   const copyId = role === "user" ? "user-message-copy" : "action-bar-copy";
   if (!/^\d+$/.test(index ?? "")) throw new Error("Claude message row identity is unavailable.");
+  await waitFor(
+    () =>
+      evaluate<boolean>(
+        client,
+        `!!document.querySelector('${ROW_SELECTOR}[data-index="${index}"] [data-testid="${copyId}"]')`,
+      ),
+    60_000,
+    "message copy control",
+  );
   const result = await evaluate<string>(
     client,
     `(async () => {

@@ -113,6 +113,9 @@ try {
     const picker = document.querySelector('[data-testid="model-selector-dropdown"]');
     picker.setAttribute("aria-label", "Model: Sonnet 5 Medium");
     setTimeout(() => picker.setAttribute("aria-label", "Model: Fable 5.1 Max"), 150);
+    const copy = document.querySelector('[data-testid="user-message-copy"]');
+    copy.removeAttribute("data-testid");
+    setTimeout(() => copy.setAttribute("data-testid", "user-message-copy"), 1000);
   });
   const recovered = await resumeClaudeBrowser(runtime, config, () => {});
   assert.equal(recovered.answerMarkdown, markdown);
