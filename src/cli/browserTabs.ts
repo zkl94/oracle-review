@@ -596,7 +596,7 @@ async function harvestClaudeOutput(
   const paths = await sessionStore.getPaths(meta.id);
   const artifacts = await ensureSessionArtifacts({
     sessionId: meta.id,
-    prompt: meta.options?.prompt ?? "",
+    prompt: snapshot.userText,
     answerMarkdown: result.answerMarkdown,
     conversationUrl: result.tabUrl,
     browserConfig: config ?? {},
