@@ -19,7 +19,8 @@ and run the live API suite before shipping major transport changes.
 ### Claude Fable 5.1 Max
 
 Run `pnpm build && node scripts/claude-recovery-proof.mjs` for isolated Chrome
-checks of reload, delayed model hydration, incomplete-answer refusal, timeout
+checks of multiline input (blank lines, indentation and literal markup),
+existing-draft refusal, reload, delayed model hydration, incomplete-answer refusal, timeout
 recovery, Markdown preservation, unchanged peer tabs and zero recovery sends.
 The synthetic page never contacts the provider.
 

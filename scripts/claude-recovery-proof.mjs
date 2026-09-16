@@ -6,6 +6,7 @@ import puppeteer from "puppeteer-core";
 import {
   CLAUDE_SNAPSHOT_EXPRESSION,
   assertClaudeAnswer,
+  buildClaudePromptInsertExpression,
   claudePromptHash,
   resumeClaudeBrowser,
 } from "../dist/src/browser/claude.js";
@@ -34,13 +35,26 @@ try {
       <div data-testid="transcript-row" data-index="1" data-perf-row="assistant" data-perf-row-streaming="false">
         <div data-is-streaming="false"><div class="standard-markdown"><h1>Answer</h1><ul><li>alpha</li><li>beta</li></ul><pre>const ok = true;</pre></div></div>
         <button data-testid="action-bar-copy" onclick='navigator.clipboard.writeText(${JSON.stringify(markdown)})'>Copy</button></div>
-      <div data-testid="chat-input" contenteditable="true"></div>
+      <div data-testid="chat-input" contenteditable="true" style="white-space:pre-wrap"></div>
       <button data-testid="chat-input-send" onclick="window.sends++">Send</button>
       <script>window.sends = 0;</script></main>`,
       }),
   );
   await page.goto(url);
   const snapshot = () => page.evaluate(CLAUDE_SNAPSHOT_EXPRESSION);
+  const prompt = '# Review\n\n```py\n  value = "<literal>&value"\n\n  return value\n```';
+  const input = await page.createCDPSession();
+  await page.focus('[data-testid="chat-input"]');
+  await input.send("Input.insertText", { text: prompt });
+  assert.notEqual(
+    (await snapshot()).draft,
+    prompt,
+    "native multiline input must reproduce the extra-newline regression",
+  );
+  await page.reload();
+  await page.evaluate(buildClaudePromptInsertExpression(prompt));
+  assert.equal((await snapshot()).draft, prompt);
+  await assert.rejects(page.evaluate(buildClaudePromptInsertExpression("overwrite")), /not empty/);
   const initial = await snapshot();
   const hash = claudePromptHash(initial);
   assert.ok(hash);
@@ -98,7 +112,7 @@ try {
     /selection/,
   );
   console.log(
-    "PASS: reload, delayed identity, timeout recovery, Markdown, zero sends, peer preservation, stale-turn and effort refusal",
+    "PASS: multiline input, existing-draft refusal, reload, delayed identity, timeout recovery, Markdown, zero sends, peer preservation, stale-turn and effort refusal",
   );
 } finally {
   await browser?.disconnect();

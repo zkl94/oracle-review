@@ -296,6 +296,20 @@ async function copyAnswer(client: ChromeClient, snapshot: ClaudeSnapshot): Promi
   return result;
 }
 
+export function buildClaudePromptInsertExpression(prompt: string): string {
+  return `(() => {
+    const editor = document.querySelector('${INPUT_SELECTOR}');
+    if (!editor || editor.innerText.trim()) throw new Error('Claude composer is missing or not empty');
+    editor.focus();
+    const escaped = document.createElement('div');
+    escaped.textContent = ${JSON.stringify(prompt.replace(/\r\n?/g, "\n"))};
+    // Native multiline insertText creates blocks whose innerText gains extra newlines.
+    // Soft breaks preserve blank lines and code indentation in the rich-text editor.
+    if (!document.execCommand('insertHTML', false, escaped.innerHTML.replace(/\\n/g, '<br>')))
+      throw new Error('Claude text insertion failed');
+  })()`;
+}
+
 function validateOptions(options: BrowserRunOptions): void {
   const config = options.config ?? {};
   if (options.model && options.model !== CLAUDE_BROWSER_MODEL)
@@ -447,8 +461,7 @@ export async function runClaudeBrowser(options: BrowserRunOptions): Promise<Brow
       hints.conversationId = claudeConversationId(snapshot.url);
       await options.runtimeHintCb?.(hints, modelSelection);
       log("[browser] Model selection: verified Fable 5.1; thinking effort: verified Max.");
-      await evaluate(client, `document.querySelector('${INPUT_SELECTOR}').focus()`);
-      await client.Input.insertText({ text: options.prompt });
+      await evaluate(client, buildClaudePromptInsertExpression(options.prompt));
       snapshot = await evaluate<ClaudeSnapshot>(client, CLAUDE_SNAPSHOT_EXPRESSION);
       assertClaudeSelection(snapshot);
       if (
